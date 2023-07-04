@@ -22,7 +22,7 @@ class FileServer:
             print(f"Conexão estabelecida com {address[0]}:{address[1]}")
             threading.Thread(target=self.handle_client, args=(client_socket,)).start()
 
-    def depositar(self, request_args):
+    def depositar(self, request_args, client_socket):
       # Implementar a lógica de replicação adequada para armazenar o arquivo em diferentes locais
       _, file_name, n_copies = request_args
 
@@ -32,19 +32,28 @@ class FileServer:
       # Checa quantidade de aplicações disponíveis
       if int(n_copies) > len(self.sockets):
         for i in range(len(self.sockets),int(n_copies)):
-          port = 8000 + i + 1
+          port = 8001 + i
           newSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
           newSocket.bind(('localhost', port))
           newSocket.listen(5)
           self.sockets[port] = newSocket
           print("New port: {}:{}".format('localhost', port))
 
+      print("\n")
       for i in range(int(n_copies)):
-        socket_obj = self.sockets[8000+i+1]
-        self.files[8000+i+1] = file_name
+        socket_obj = self.sockets[8001+i]
+        self.files[8001+i] = file_name
 
-        #socket_obj.connect(('localhost',8000+i+1))
+        client_socket.close()
+        print("Liberou conexão com client_socket")
+
+        print(type(socket_obj))       
+        print("Tentando conexão do server_socket com localhost:{}".format(8001+i))
+        socket_obj.accept()
+        print("Conexão aceita para a porta {}".format(8001+i))
         socket_obj.sendall(data)
+        print("Dados enviados com sucesso")
+        socket_obj.close()
 
       return True
 
@@ -68,7 +77,7 @@ class FileServer:
         command = request_args[0]
 
         if command == "DEPOSIT":
-          if self.depositar(request_args):
+          if self.depositar(request_args, client_socket):
             response = "Deposito realizado com sucesso"
           else:
              response = "Nao foi possivel realizar o deposito"
