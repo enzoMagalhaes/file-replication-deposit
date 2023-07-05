@@ -5,39 +5,23 @@ class FileClient:
     def __init__(self, host, port):
         self.host = host
         self.port = port
+        self.sockets = []
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.connect((self.host, self.port))
-        self.sockets = []
-        self.stock = {}
-
-    def create_sockets(self, n):
-       for i in range(len(self.sockets),n):
-          #newSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-          #newSocket.bind((self.host, 8001+i))
-          #newSocket.listen(5)
-          #self.sockets[8001+i] = newSocket
-          self.sockets.append(8001+i)
 
     def deposit(self, file_name, n_copies):
-        if n_copies > len(self.sockets):
-           self.create_sockets(n_copies)
+      if n_copies > len(self.sockets):
+        for i in range(len(self.sockets),n_copies):
+           self.sockets.append(8001+i)
 
-        for i in range(n_copies): 
-          response_data = f"DEPOSIT:{file_name}:{n_copies}"
-          self.client_socket.send(response_data.encode())
-        
-          print("Tentando conexão com socket {}".format(self.sockets[i]))
-          self.client_socket.shutdown(socket.SHUT_RDWR)
-          self.client_socket.connect((self.host,self.sockets[i]))
-          print("Conexão estabelecida")
-          self.client_socket.send(response_data.encode())
+      data = open(file_name,'r').read()
+      response_data = f"DEPOSIT:{file_name}:{data}:{n_copies}"
 
-          print(self.client_socket[self.port].recv(1024).decode())
-          print("\nDepositado.")
-
-        time.sleep(0.1)  # Add a small delay (e.g., 100 milliseconds)
-        self.client_socket.shutdown(socket.SHUT_RDWR)
-        self.client_socket.connect((self.host, self.port))
+      self.client_socket.send(response_data.encode())
+      self.client_socket.shutdown(socket.SHUT_RDWR)
+      self.client_socket.accept()
+      print(self.client_socket.recv(1024).decode())
+      self.client_socket.close()
 
     def retrieve(self, file_name):
       response_data = f"RETRIEVE:{file_name}"
