@@ -24,9 +24,17 @@ class FileClient:
         open(f"./{file_name}", "w").write(data)
         self.client_socket.close()
 
+    def change_replication(self,file_name,new_replication_level):
+        response_data = f"CHANGE_REPLICATION:{file_name}:{new_replication_level}"
 
+        self.client_socket.send(response_data.encode())
+        print(self.client_socket.recv(1024).decode())
+        self.client_socket.close()
+     
 if __name__ == "__main__":
 
     client = FileClient("localhost", 3001)
+
     # client.deposit(file_name="teste.txt",replication_level=2)
-    client.retrieve("teste.txt")
+    # client.retrieve("teste.txt")
+    client.change_replication(file_name='teste.txt',new_replication_level=5)

@@ -18,9 +18,6 @@ class ReplicationDeposit:
             return "1"
         except:
             return "0"
-
-    def check_file(self,file_name) -> str:
-        return os.path.exists(f"{self.files_folder}/{file_name}")
     
     def retrieve(self,file_name) -> str:
         try:
@@ -28,6 +25,14 @@ class ReplicationDeposit:
         except:
             return "-1"
         
+    def delete(self,file_name) -> str:
+        file_path = f"{self.files_folder}/{file_name}"
+        if(os.path.isfile(file_path)):
+            os.remove(file_path)
+            return "1"
+        else:
+            return "0"
+
     def start(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind((self.host, self.port))
@@ -50,6 +55,10 @@ class ReplicationDeposit:
             _, file_name = request_args
             response = self.retrieve(file_name=file_name)
 
+        elif command=="DELETE":
+            _,file_name = request_args
+            response = self.delete(file_name=file_name)
+            
         else:
             response = "Comando inválido."
 

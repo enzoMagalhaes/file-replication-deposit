@@ -21,7 +21,6 @@ class FileServer:
                 sock.bind((self.host, self.last_replication_port))
             except:
                 # Conexao falhou, porta disponivel
-                print(f"porta disponivel: {self.last_replication_port}")
                 available_port = self.last_replication_port
             finally:
                 sock.close()
@@ -57,6 +56,10 @@ class FileServer:
         elif command == "RETRIEVE":
             _, file_name = request_args
             response = self.retrieve(file_name=file_name)
+
+        elif command == "CHANGE_REPLICATION":
+            _,file_name, new_replication_level = request_args
+            response = self.change_replication(file_name=file_name,new_replication_level=int(new_replication_level))
 
         else:
             response = "Comando inválido."
@@ -110,6 +113,24 @@ class FileServer:
                 if(data != "-1"):
                     return data
         return "Arquivo nao encontrado."
+
+
+    def change_replication(self,file_name,new_replication_level):
+        len_replication = len(self.replication_ports)
+
+        if len_replication > new_replication_level:
+            for i in range(len_replication-new_replication_level):
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.connect(
+                        (self.host, self.replication_ports[(len_replication-1)-i])
+                    )
+                    sock.send(f"DELETE:{file_name}".encode())
+                    sock.close()
+        elif len_replication < new_replication_level:
+            data = self.retrieve(file_name)
+            self.deposit(file_name=file_name,replication_level=new_replication_level,data=data)
+
+        return f"nivel de replicacao do arquivo {file_name} modificado para {new_replication_level}"
 
 
 if __name__ == "__main__":
