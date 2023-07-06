@@ -1,91 +1,119 @@
 import socket
 import threading
-import time
+from ReplicationDeposit import ReplicationDeposit
+
 
 class FileServer:
     SIZE = 1024
 
-    def __init__(self, host, port):
+    def __init__(self, host):
+        self.last_replication_port = 3000
         self.host = host
-        self.port = port
-        self.sockets = {}
-        self.files = {}
-        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.bind((self.host, self.port))
-        self.server_socket.listen(5)
-        print(f"Servidor iniciado em {self.host}:{self.port}")
+        self.port = self.get_available_port()
+        self.max_replication = 0
+        self.replication_ports = []
+
+    def get_available_port(self):
+        available_port = None
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        while True:
+            try: 
+                sock.bind((self.host, self.last_replication_port))
+            except:
+                # Conexao falhou, porta disponivel
+                print(f"porta disponivel: {self.last_replication_port}")
+                available_port = self.last_replication_port
+            finally:
+                sock.close()
+                self.last_replication_port += 1
+                if available_port:
+                    return available_port
 
     def start(self):
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.bind((self.host, self.port))
+        server_socket.listen(5)
+        print(f"Servidor iniciado em {self.host}:{self.port}")
+
         while True:
-            client_socket, address = self.server_socket.accept()
+            client_socket, address = server_socket.accept()
             print(f"Conexão estabelecida com {address[0]}:{address[1]}")
             threading.Thread(target=self.handle_client, args=(client_socket,)).start()
-
-    def criar_sockets(self, porta):
-      newSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      newSocket.bind(('localhost', int(porta)))
-      newSocket.listen(5)
-      self.sockets[porta] = newSocket
-      print(f"New port: {'localhost'}:{porta}")
-
-      t = threading.Thread(target=self.run_sockets, args=(newSocket,porta))
-      t.daemon = True
-      t.start()
-
-    # Thread de cada socket (replica) rodando
-    def run_sockets_deposit(self, socket, port):
-      while True:
-        print(f"Esperando conexão na porta {port}")
-        origin, address = socket.accept()
-        print(f"Conexão estabelecida com {address[0]}:{address[1]} na porta {port}")
-
-        request = origin.recv(self.SIZE).decode()
-        request_args = request.split(":")
-        _, file_name, data = request_args
-
-        with open(f"replicas/{port}/{file_name}", "w") as file:
-          file.write(data)
-      
-        origin.send("Arquivo armazenado com sucesso".encode())
-        origin.close()
-
-    def depositar(self, request):
-      # Implementar a lógica de replicação adequada para armazenar o arquivo em diferentes locais 
-      request_args = request.split(":")
-      _, file_name, data, porta = request_args
-
-      # Checa quantidade de aplicações disponíveis
-      if porta not in self.sockets:
-        self.criar_sockets(porta)
-
-      return True
 
     def handle_client(self, client_socket):
         request = client_socket.recv(self.SIZE).decode()
         request_args = request.split(":")
         command = request_args[0]
-        time.sleep(0.2)
 
         if command == "DEPOSIT":
-          if self.depositar(request):
-            response = "Deposito realizado com sucesso"
-          else:
-             response = "Nao foi possivel realizar o deposito"
+            _, file_name, replication_level, data = request_args
 
-        #elif command == "RETRIEVE":
-        #  if self.retornar(request_args):
-        #    response = "Arquivo retornado com sucesso"
-        #  else:
-        #     response = "Nao foi possivel encontrar arquivo solicitado"
-        
+            # try:
+            self.deposit(file_name, int(replication_level), data)
+            response = "Depósito concluído com sucesso."
+            # except Exception as e:
+            # response = f"Ocorreu um erro no deposito. erro: {e}"
+
+        elif command == "RETRIEVE":
+            _, file_name = request_args
+            response = self.retrieve(file_name=file_name)
+
         else:
             response = "Comando inválido."
 
         client_socket.send(response.encode())
         client_socket.close()
-        
+
+    def deposit(self, file_name, replication_level, data):
+        if self.max_replication < replication_level:
+            for i in range(replication_level - self.max_replication):
+                replication_port = self.get_available_port()
+
+                threading.Thread(
+                    target=ReplicationDeposit(self.host, replication_port).start,
+                    args=(),
+                ).start()
+
+                self.replication_ports.append(replication_port)
+
+            self.max_replication = replication_level
+
+        replication_count = 0
+        for i in range(replication_level):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((self.host, self.replication_ports[i]))
+            sock.send(f"DEPOSIT:{file_name}:{data}".encode())
+
+            if sock.recv(self.SIZE).decode() == "1":
+                replication_count += 1
+
+            sock.close()
+
+        if replication_count == replication_level:
+            print(f"Replicacao para {replication_level} nodes concluida com sucesso.")
+        else:
+            print(
+                f"Replicacao para {replication_level} nodes falhou! nivel de replicacao: {replication_count}"
+            )
+
+    def retrieve(self, file_name):
+        for i in range(len(self.replication_ports)):
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.connect(
+                    (self.host, self.replication_ports[i])
+                )
+                sock.send(f"RETRIEVE:{file_name}".encode())
+
+                data = sock.recv(self.SIZE).decode()
+                sock.close()
+
+                if(data != "-1"):
+                    return data
+        return "Arquivo nao encontrado."
+
 
 if __name__ == "__main__":
-    # Execução do servidor
-    server = FileServer("localhost", 8000)
+    HOST = "0.0.0.0"
+
+    server = FileServer(HOST)
     server.start()
