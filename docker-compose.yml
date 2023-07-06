@@ -1,0 +1,11 @@
+version: '3'
+services:
+  storage_replica:
+    build:
+      context: .
+      dockerfile: Dockerfile.storage_replica
+    ports:
+      - 5000-5004:5000
+    deploy:
+      mode: replicated
+      replicas: 5

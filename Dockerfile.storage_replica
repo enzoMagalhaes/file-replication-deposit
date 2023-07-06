@@ -1,0 +1,12 @@
+FROM python:3.9
+
+# Set working directory
+WORKDIR /server
+
+# Copy the Python script to the container
+COPY ./server/replication_deposit.py .
+
+# RUN --network=rede_container
+
+# Run the Python script when the container starts
+CMD ["python", "replication_deposit.py"]

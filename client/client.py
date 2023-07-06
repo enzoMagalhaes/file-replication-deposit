@@ -31,10 +31,13 @@ class FileClient:
         print(self.client_socket.recv(1024).decode())
         self.client_socket.close()
      
+
+
 if __name__ == "__main__":
 
-    client = FileClient("localhost", 3001)
+    client = FileClient("localhost", 3000)
+
 
     # client.deposit(file_name="teste.txt",replication_level=2)
-    # client.retrieve("teste.txt")
-    client.change_replication(file_name='teste.txt',new_replication_level=5)
+    client.retrieve("teste.txt")
+    # client.change_replication(file_name='teste.txt',new_replication_level=1)
