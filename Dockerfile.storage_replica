@@ -1,0 +1,12 @@
+# usa uma imagem padrão que contém o python já instalado
+FROM python:3.9
+
+# Pasta principal no container
+WORKDIR /replica
+
+# Copia o storage_replica.py para o container 
+COPY ./server/storage_replica.py .
+
+# Executa "python storage_replica.py" quando o container estiver pronto
+CMD ["python", "storage_replica.py"]
+

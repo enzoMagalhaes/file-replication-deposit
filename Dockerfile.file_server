@@ -1,0 +1,11 @@
+# usa uma image padrão que contém o python já instalado
+FROM python:3.9
+
+# Pasta principal no container
+WORKDIR /server
+
+# Copia o server.py para o container 
+COPY ./server/server.py .
+
+# Executa "python server.py" quando o container estiver pronto
+CMD ["python", "server.py"]
