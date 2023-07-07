@@ -38,6 +38,6 @@ if __name__ == "__main__":
     client = FileClient("localhost", 3000)
 
 
-    # client.deposit(file_name="teste.txt",replication_level=2)
-    client.retrieve("teste.txt")
+    client.deposit(file_name="teste.txt",replication_level=2)
+    #client.retrieve("teste.txt")
     # client.change_replication(file_name='teste.txt',new_replication_level=1)
