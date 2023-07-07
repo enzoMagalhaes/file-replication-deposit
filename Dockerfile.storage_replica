@@ -1,12 +1,12 @@
+# usa uma imagem padrão que contém o python já instalado
 FROM python:3.9
 
-# Set working directory
-WORKDIR /server
+# Pasta principal no container
+WORKDIR /replica
 
-# Copy the Python script to the container
-COPY ./server/replication_deposit.py .
+# Copia o storage_replica.py para o container 
+COPY ./server/storage_replica.py .
 
-# RUN --network=rede_container
+# Executa "python storage_replica.py" quando o container estiver pronto
+CMD ["python", "storage_replica.py"]
 
-# Run the Python script when the container starts
-CMD ["python", "replication_deposit.py"]

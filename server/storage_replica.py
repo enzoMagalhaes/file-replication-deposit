@@ -2,30 +2,30 @@ import os
 import socket
 import threading
 
-class ReplicationDeposit:
+class StorageReplica:
     SIZE = 1024
 
-    def __init__(self, host,port) -> None:
+    def __init__(self, host:str,port:int) -> None:
         self.host = host
         self.port = port
-        self.files_folder = f"./replication"
+        self.files_folder = f"./files"
         if not os.path.exists(self.files_folder):
             os.makedirs(self.files_folder)
 
-    def deposit(self, file_name, data) -> bool:
+    def deposit(self, file_name:str, data:str) -> bool:
         try:
             open(f"{self.files_folder}/{file_name}", "w").write(data)
             return "1"
         except:
             return "0"
 
-    def retrieve(self, file_name) -> str:
+    def retrieve(self, file_name:str) -> str:
         try:
             return open(f"{self.files_folder}/{file_name}", "r").read()
         except:
             return "-1"
 
-    def delete(self, file_name) -> str:
+    def delete(self, file_name:str) -> str:
         file_path = f"{self.files_folder}/{file_name}"
         if os.path.isfile(file_path):
             os.remove(file_path)
@@ -43,7 +43,7 @@ class ReplicationDeposit:
                 target=self.handle_request, args=(file_server_socket,)
             ).start()
 
-    def handle_request(self, file_server_socket):
+    def handle_request(self, file_server_socket) -> None:
         request = file_server_socket.recv(self.SIZE).decode()
         request_args = request.split(":")
         command = request_args[0]
@@ -69,4 +69,4 @@ class ReplicationDeposit:
 
 if __name__ == "__main__":
     PORT = 5000
-    ReplicationDeposit("0.0.0.0",5000).start()
+    StorageReplica("0.0.0.0",5000).start()

@@ -1,11 +1,23 @@
 version: '3'
 services:
+  file_server:
+    build:
+      context: .
+      dockerfile: Dockerfile.file_server
+    ports:
+      - 3000:3000
+    networks:
+      - file_deposit_network
+
   storage_replica:
     build:
       context: .
       dockerfile: Dockerfile.storage_replica
-    ports:
-      - 5000-5004:5000
     deploy:
       mode: replicated
       replicas: 5
+    networks:
+      - file_deposit_network
+
+networks:
+  file_deposit_network:

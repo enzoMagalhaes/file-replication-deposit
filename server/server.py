@@ -1,16 +1,17 @@
 import socket
 import threading
 
+
 class FileServer:
     SIZE = 1024
 
-    def __init__(self, host, port,replication_ports):
+    def __init__(self, host: str, port: int, storage_replicas: list) -> None:
         self.host = host
         self.port = port
-        self.replication_ports = replication_ports
+        self.storage_replicas = storage_replicas
         self.file_replication = {}
 
-    def start(self):
+    def start(self) -> None:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind((self.host, self.port))
         server_socket.listen(5)
@@ -21,7 +22,7 @@ class FileServer:
             print(f"Conexão estabelecida com {address[0]}:{address[1]}")
             threading.Thread(target=self.handle_client, args=(client_socket,)).start()
 
-    def handle_client(self, client_socket):
+    def handle_client(self, client_socket) -> None:
         request = client_socket.recv(self.SIZE).decode()
         request_args = request.split(":")
         command = request_args[0]
@@ -35,8 +36,10 @@ class FileServer:
             response = self.retrieve(file_name=file_name)
 
         elif command == "CHANGE_REPLICATION":
-            _,file_name, new_replication_level = request_args
-            response = self.change_replication(file_name=file_name,new_replication_level=int(new_replication_level))
+            _, file_name, new_replication_level = request_args
+            response = self.change_replication(
+                file_name=file_name, new_replication_level=int(new_replication_level)
+            )
 
         else:
             response = "Comando inválido."
@@ -44,15 +47,17 @@ class FileServer:
         client_socket.send(response.encode())
         client_socket.close()
 
-    def deposit(self, file_name, replication_level, data):
-        replication_len = len(self.replication_ports)
+    def deposit(self, file_name: str, replication_level: int, data: str) -> str:
+        replication_len = len(self.storage_replicas)
         if replication_len < replication_level:
             return f"Nivel de replicacao nao suportado, numero de replicas de armazenamento: {replication_len}."
 
         replication_count = 0
         for i in range(replication_level):
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.connect((self.host, self.replication_ports[i]))
+            sock.connect(
+                (self.storage_replicas[i]["addr"], self.storage_replicas[i]["port"])
+            )
             sock.send(f"DEPOSIT:{file_name}:{data}".encode())
 
             if sock.recv(self.SIZE).decode() == "1":
@@ -70,36 +75,40 @@ class FileServer:
 
         return "Depósito concluído com sucesso."
 
-    def retrieve(self, file_name):
-        for i in range(len(self.replication_ports)):
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.connect(
-                    (self.host, self.replication_ports[i])
-                )
-                sock.send(f"RETRIEVE:{file_name}".encode())
+    def retrieve(self, file_name: str) -> str:
+        for i in range(len(self.storage_replicas)):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect(
+                (self.storage_replicas[i]["addr"], self.storage_replicas[i]["port"])
+            )
+            sock.send(f"RETRIEVE:{file_name}".encode())
 
-                data = sock.recv(self.SIZE).decode()
-                sock.close()
+            data = sock.recv(self.SIZE).decode()
+            sock.close()
 
-                if(data != "-1"):
-                    return data
+            if data != "-1":
+                return data
         return "Arquivo nao encontrado."
 
-
-    def change_replication(self,file_name,new_replication_level):
+    def change_replication(self, file_name: str, new_replication_level: int) -> str:
         file_replication = self.file_replication[file_name]
         if file_replication > new_replication_level:
-            for i in range(file_replication-new_replication_level):
-                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    sock.connect(
-                        (self.host, self.replication_ports[(file_replication-1)-i])
+            for i in range(file_replication - new_replication_level):
+                idx = (file_replication - 1) - i
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.connect(
+                    (
+                        self.storage_replicas[idx]["addr"],
+                        self.storage_replicas[idx]["port"],
                     )
-                    sock.send(f"DELETE:{file_name}".encode())
-                    sock.close()
+                )
+                sock.send(f"DELETE:{file_name}".encode())
+                sock.close()
         elif file_replication < new_replication_level:
             data = self.retrieve(file_name)
-            self.deposit(file_name=file_name,replication_level=new_replication_level,data=data)
-
+            self.deposit(
+                file_name=file_name, replication_level=new_replication_level, data=data
+            )
 
         message = f"nivel de replicacao do arquivo {file_name} modificado para {new_replication_level}"
         print(message)
@@ -110,7 +119,13 @@ class FileServer:
 if __name__ == "__main__":
     HOST = "0.0.0.0"
     PORT = 3000
-    REPLICATION_PORTS = [5000,5001,5002,5003,5004]
+    storage_replicas = [
+        {"addr": "file_deposit_storage_replica_1", "port": 5000},
+        {"addr": "file_deposit_storage_replica_2", "port": 5000},
+        {"addr": "file_deposit_storage_replica_3", "port": 5000},
+        {"addr": "file_deposit_storage_replica_4", "port": 5000},
+        {"addr": "file_deposit_storage_replica_5", "port": 5000},
+    ]
 
-    server = FileServer(HOST,PORT,REPLICATION_PORTS)
+    server = FileServer(HOST, PORT, storage_replicas)
     server.start()

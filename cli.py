@@ -2,7 +2,7 @@ import argparse
 from client.client import FileClient
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="File Client CLI")
+    parser = argparse.ArgumentParser(description="client CLI do sistema de depósito de arquivos")
 
     parser.add_argument("--host", default="0.0.0.0", help="Server host address")
     parser.add_argument("--port", type=int, default=3000, help="Server port number")
@@ -17,33 +17,33 @@ if __name__ == "__main__":
             break
         elif request == "help":
             print(
-                "Enter a request (deposit myfile.txt <replication_level>, retrieve myfile.txt, change_replication myfile.txt <new_replication_level>) or 'quit' to exit: "
+                "Enter a request (DEPOSIT myfile.txt <replication_level>, RETRIEVE myfile.txt, CHANGE_REPLICATION myfile.txt <new_replication_level>) or 'quit' to exit: "
             )
 
         parts = request.split()
         command = parts[0]
 
-        if command == "deposit":
+        if command == "DEPOSIT":
             if len(parts) != 3:
                 print(
-                    "Invalid request format. Usage: deposit myfile.txt <replication_level>"
+                    "Invalid request format. Usage: DEPOSIT myfile.txt <replication_level>"
                 )
                 continue
 
             file_name = parts[1]
             replication_level = int(parts[2])
             client.deposit(file_name, replication_level)
-        elif command == "retrieve":
+        elif command == "RETRIEVE":
             if len(parts) != 2:
-                print("Invalid request format. Usage: retrieve myfile.txt")
+                print("Invalid request format. Usage: RETRIEVE myfile.txt")
                 continue
 
             file_name = parts[1]
             client.retrieve(file_name)
-        elif command == "change_replication":
+        elif command == "CHANGE_REPLICATION":
             if len(parts) != 3:
                 print(
-                    "Invalid request format. Usage: change_replication myfile.txt <new_replication_level>"
+                    "Invalid request format. Usage: CHANGE_REPLICATION myfile.txt <new_replication_level>"
                 )
                 continue
 
