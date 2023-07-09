@@ -16,6 +16,76 @@ Foi utilizada a __linguagem de programação Python__ para o desenvolvimento dos
 
 ## Funcionamento:
 
+### Funcionalidades
+
+Na aplicação o cliente se comunica com o servidor usando sockets, e este é configurado para aceitar apenas três chamadas, a chamada para depositar um arquivo (DEPOSIT), buscar um arquivo replicado (RETRIEVE), e mudar o nível de tolerância a falhas de um dado arquivo já armazenado no sistema. 
+
+Na implementação do serviço de armazenamento com replicação, foram desenvolvidas duas camadas de "protocolos" que controlam a comunicação entre os seus componentes. O primeiro protocolo governa a sintaxe dos comandos de comunicação entre o cliente e o servidor principal (FileServer), e o segundo protocolo determina os comandos de comunicação entre o servidor principal e as réplicas de armazenamento (StorageReplica). 
+
+#### Protocolo de interação Cliente-Servidor Principal
+
+Os três tipos de requisição aceitos pelo servidor principal são os que seguem:
+
+##### DEPOSIT
+__sintaxe:__
+>DEPOSIT:nome_do_arquivo:conteúdo_do_arquivo:nível_de_replicação
+
+Nesse comando, o cliente envia para o servidor o nome do arquivo, o seu conteúdo e o nível de tolerância a falhas desejado, e o servidor armazena o conteúdo sobre o nome especificado em N réplicas, onde N é o nível  de tolerância a falhas (nível de replicação) especificado pelo cliente.
+
+##### RETRIEVE
+__sintaxe:__
+>RETRIEVE:nome_do_arquivo
+
+Nesse comando, o cliente envia para o servidor o nome do arquivo, e o servidor procura pelo arquivo nas réplicas de armazenamento e, se o arquivo existir em alguma delas, o servidor faz uma requisição para alguma das réplicas que contém o arquivo para retornar o seu conteúdo para o servidor, e o servidor em seguida retorna para o cliente.
+
+##### CHANGE_REPLICATION
+__sintaxe:__
+>CHANGE_REPLICATION:nome_do_arquivo:novo_nível_de_replicação
+
+Nesse comando, o cliente envia para o servidor o nome do arquivo, o seu conteúdo e o nível de tolerância a falhas desejado, e o servidor 
+
+#### Protocolo de interação Servidor Principal-Réplica de Armazenamento
+
+##### DEPOSIT
+__sintaxe:__
+>DEPOSIT:nome_do_arquivo:conteúdo_do_arquivo
+
+Nesse comando, o servidor principal envia o nome e o conteúdo do arquivo a ser armazenado. A réplica de armazenamento, ao receber a requisição, armazena o arquivo na pasta __/files__ dentro do sistema operacional contido no container.
+
+##### RETRIEVE
+__sintaxe:__
+>RETRIEVE:nome_do_arquivo
+
+Nesse comando, o servidor envia o nome do arquivo que ele busca na réplica, e a mesma retorna o conteúdo do arquivo solicitado, caso ele exista na pasta __/files__ do container.
+
+##### DELETE
+__sintaxe:__
+>DELETE:nome_do_arquivo
+
+Nesse comando, o servidor envia o nome do arquivo que deve ser removido na réplica, e a mesma o exclui, caso o arquivo exista na pasta __/files__ do container.
+
+#### Interface CLI
+
+Também foi desenvolvida uma interface CLI para facilitar a interação entre o usuário e o serviço de armazenamento. 
+
+##### DEPOSIT
+__sintaxe:__
+>DEPOSIT caminho_do_arquivo nível_de_replicação
+
+Ao executar esse comando, a aplicação CLI busca o caminho do arquivo, extrai o seu conteúdo e envia uma requisição DEPOSIT para o servidor principal usando a sintaxe do protocolo cliente-servidor principal __DEPOSIT:nome_do_arquivo:conteúdo_do_arquivo:nível_de_replicação__.
+
+##### RETRIEVE
+__sintaxe:__
+>RETRIEVE nome_do_arquivo
+
+Ao executar esse comando, a aplicação CLI envia uma requisição RETRIEVE para o servidor principal usando a sintaxe do protocolo cliente-servidor principal __RETRIEVE:nome_do_arquivo__.
+
+##### CHANGE_REPLICATION
+__sintaxe:__
+>CHANGE_REPLICATION nome_do_arquivo novo_nível_de_replicação
+
+Ao executar esse comando, a aplicação CLI envia uma requisição CHANGE_REPLICATION para o servidor principal usando a sintaxe do protocolo cliente-servidor principal __CHANGE_REPLICATION:nome_do_arquivo:novo_nível_de_replicação__.
+
 ### Componentes do sistema:
 
 O software é composto por três componentes principais:
@@ -28,12 +98,12 @@ O software é composto por três componentes principais:
 #### Atributos:  
    - host (str): O endereço IP ou nome do host do servidor.  
    - port (int): A porta na qual o servidor está ouvir conexões.  
-   - storage_replicas (list): Uma lista de réplicas de armazenamento. Cada réplica é representada por um dicionário contendo o endereço IP (ou nome do host) e a porta.
+   - storage_replicas (list): Uma lista de réplicas de armazenamento. Cada réplica é representada por um dicionário contendo o endereço IP (ou nome do host armazenado no DNS da network virtual criada ao dar docker-compose up) e a porta.
 
 
 #### Métodos:
 ____init__(self, host: str, port: int, storage_replicas: list) -> None__  
->Este método inicializa um objeto FileServer. Ele recebe o endereço IP (ou nome do host) do servidor, a porta do servidor e uma lista de réplicas de armazenamento como argumentos. Os valores recebidos são atribuídos aos atributos correspondentes.
+>Este método inicializa um objeto FileServer. Ele recebe o endereço IP (ou nome do host armazenado no DNS da network virtual criada ao dar docker-compose up) do servidor, a porta do servidor e uma lista de réplicas de armazenamento como argumentos. Os valores recebidos são atribuídos aos atributos correspondentes.
 
 __start(self) -> None__  
 >Este método inicia o servidor. Ele cria um socket do tipo TCP/IP, vincula o socket ao endereço IP e porta especificados e começa a ouvir por conexões. O método entra em um loop infinito onde aceita conexões de clientes e inicia uma nova thread para lidar com cada cliente.
@@ -123,7 +193,7 @@ build:
 >Funciona da mesma forma que para o serviço file_server, onde o contexto é definido como o diretório atual (.) e o Dockerfile é definido como Dockerfile.storage_replica.
 
 deploy: 
->Essa seção especifica as configurações para o modo de implantação do serviço. O modo é definido como "replicated" e o número de réplicas é definido como 5. Isso significa que serão criadas e implantadas cinco instâncias do serviço storage_replica.
+>Essa seção especifica as configurações para o modo de implantação do serviço. O modo é definido como "replicated" e o número de réplicas é definido como 5. Isso significa que serão criadas e implantadas cinco instâncias do serviço storage_replica. Para aumentar ou diminuir o número de instâncias, basta alterar o número para a quantidade desejada.
 
 networks: 
 >Essa seção conecta o serviço storage_replica à rede file_deposit_network. Isso permite que as réplicas de armazenamento se comuniquem com o servidor e entre si.
@@ -131,4 +201,10 @@ networks:
 - __Dockerfile.file_server__: O arquivo Dockerfile descreve a construção de uma imagem Docker que contém um servidor Python. Ele usa a imagem base oficial do Python 3.9, copia o arquivo server.py para o contêiner e define o comando padrão para iniciar o servidor Python. Com essa imagem, é possível criar um contêiner executável que inicia automaticamente o servidor quando for iniciado.
 - __Dockerfile.storage_replica__: Assim como o arquivo Dockerfilme.file_server, descreve a construção de uma imagem Docker que contém uma réplica de armazenamento usando do Python 3.9, copia o arquivo storage_replica.py para o contêiner e define o comando padrão para iniciar a réplica de armazenamento. Criando um contêiner executável que inicia automaticamente a réplica de armazenamento quando for iniciado.
 
+## Como executar localmente
 
+Para executar a aplicação, basta executar os seguintes passos no terminal (na pasta raiz da aplicação):
+
+1. docker-compose up (necessário ter o docker e o docker-compose instalado)
+
+2. python3 cli.py
